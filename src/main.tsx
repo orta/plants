@@ -1,16 +1,13 @@
 // Names for leaf anatomy: https://www.sciencefacts.net/parts-of-a-leaf.html
+// Style inspiration: https://www.youtube.com/watch?v=3tKo1kqMfJY
+// Drawing pencil-like lines: https://heredragonsabound.blogspot.com/2020/02/creating-pencil-effect-in-svg.html
 
-import { render } from "./svgJSX";
+import { render } from "preact";
+import { useState } from "preact/hooks";
+import { DrawLineDefs } from "./DrawLine";
+import { DrawPot } from "./DrawPot";
 import { App } from "./UI";
-
-declare global {
-  namespace JSX {
-    interface Element {}
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
+import { SeededRandom } from "./SeededRandom";
 
 export type Genome = [
   stems: 1 | 2 | 3 | 4,
@@ -90,34 +87,34 @@ export type AppState = {
   selectedStage: 1 | 2 | 3 | 4;
 };
 
-let appState: AppState = {
-  stems: 2,
-  leafsPerStem: 3,
-  petioles: 2,
-  selectedStage: 1,
-};
-
-let appContainer: HTMLElement | null = null;
-
-const setState = (newState: Partial<AppState>) => {
-  appState = { ...appState, ...newState };
-  renderApp();
-};
-
 interface LeafProps {
   x: number;
   y: number;
   size: number;
+  random: SeededRandom;
 }
 
-const generateLeaf = ({ x, y, size }: LeafProps): JSX.Element => {
-  const leafPath = `M ${x} ${y} Q ${x - size / 2} ${y - size} ${x} ${
-    y - size * 1.5
-  } Q ${x + size / 2} ${y - size} ${x} ${y}`;
+const generateLeaf = ({ x, y, size, random }: LeafProps) => {
+  // Add slight randomness for hand-drawn effect
+  const wobble = (value: number) => random.wobble(value, 2);
+
+  const leafPath = `M ${wobble(x)} ${wobble(y)} Q ${wobble(
+    x - size / 2
+  )} ${wobble(y - size)} ${wobble(x)} ${wobble(y - size * 1.5)} Q ${wobble(
+    x + size / 2
+  )} ${wobble(y - size)} ${wobble(x)} ${wobble(y)}`;
+
   return (
     <path
       d={leafPath}
-      style={{ fill: "#4ade80", stroke: "#16a34a", strokeWidth: "1" }}
+      style={{
+        fill: "#e8f5e9",
+        stroke: "#2d2d2d",
+        strokeWidth: "1",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        filter: "url(#roughPaper)",
+      }}
     />
   );
 };
@@ -128,6 +125,7 @@ interface StemProps {
   height: number;
   leafCount: number;
   leafSize: number;
+  random: SeededRandom;
 }
 
 const generateStem = ({
@@ -136,17 +134,27 @@ const generateStem = ({
   height,
   leafCount,
   leafSize,
-}: StemProps): JSX.Element[] => {
-  const elements: JSX.Element[] = [];
+  random,
+}: StemProps) => {
+  const elements = [];
 
-  // Stem line
+  // Create a slightly curved stem for more organic look
+  const wobbleAmount = 3;
+  const midX = startX + (random.next() - 0.5) * wobbleAmount;
+  const stemPath = `M ${startX} ${startY} Q ${midX} ${startY - height / 2} ${
+    startX + (random.next() - 0.5) * 2
+  } ${startY - height}`;
+
   elements.push(
-    <line
-      x1={startX}
-      y1={startY}
-      x2={startX}
-      y2={startY - height}
-      style={{ stroke: "#16a34a", strokeWidth: "3" }}
+    <path
+      d={stemPath}
+      style={{
+        fill: "none",
+        stroke: "#16a34a",
+        strokeWidth: "2",
+        strokeLinecap: "round",
+        filter: "url(#roughPaper)",
+      }}
     />
   );
 
@@ -155,7 +163,7 @@ const generateStem = ({
     const leafY = startY - (height * (i + 1)) / (leafCount + 1);
     const side = i % 2 === 0 ? -1 : 1;
     const leafX = startX + side * 15;
-    elements.push(generateLeaf({ x: leafX, y: leafY, size: leafSize }));
+    elements.push(generateLeaf({ x: leafX, y: leafY, size: leafSize, random }));
   }
 
   return elements;
@@ -164,9 +172,10 @@ const generateStem = ({
 interface PlantSVGProps {
   genome: Genome;
   input: Input;
+  random: SeededRandom;
 }
 
-export const GenerateSVG = ({ genome, input }: PlantSVGProps): JSX.Element => {
+export const GenerateSVG = ({ genome, input, random }: PlantSVGProps) => {
   const [stems, leafsPerStem, _petioles] = genome;
   const { time } = input;
 
@@ -175,15 +184,34 @@ export const GenerateSVG = ({ genome, input }: PlantSVGProps): JSX.Element => {
   const baseHeight = 100 * growthScale;
   const leafSize = 15 * growthScale;
 
-  const svgElements: JSX.Element[] = [];
-  const svgWidth = stems * 80;
-  const svgHeight = 200;
+  const svgElements = [];
+  const svgWidth = 300;
+  const svgHeight = 300;
 
-  // Generate stems
+  // Pot dimensions
+  const potWidth = 100 + stems * 20; // Scale pot width based on number of stems
+  const potHeight = 60;
+  const potX = svgWidth / 2;
+  const potY = svgHeight - 80;
+
+  // Add pot to elements
+  svgElements.push(
+    <DrawPot
+      x={potX}
+      y={potY}
+      width={potWidth}
+      height={potHeight}
+      style="tapered"
+      random={random}
+    />
+  );
+
+  // Generate stems starting from pot rim
   for (let stemIndex = 0; stemIndex < stems; stemIndex++) {
-    const stemX = (stemIndex + 1) * (svgWidth / (stems + 1));
-    const stemY = svgHeight - 20;
-    const stemHeight = baseHeight + (Math.random() * 20 - 10); // Small variation
+    const stemX =
+      (stemIndex + 1) * (potWidth / (stems + 1)) + (potX - potWidth / 2);
+    const stemY = potY + 5; // Start just inside the pot rim
+    const stemHeight = baseHeight + (random.range(-10, 10)); // Small variation
 
     const stemElements = generateStem({
       startX: stemX,
@@ -191,6 +219,7 @@ export const GenerateSVG = ({ genome, input }: PlantSVGProps): JSX.Element => {
       height: stemHeight,
       leafCount: leafsPerStem,
       leafSize: leafSize,
+      random: random,
     });
     svgElements.push(...stemElements);
   }
@@ -198,16 +227,22 @@ export const GenerateSVG = ({ genome, input }: PlantSVGProps): JSX.Element => {
   // Add flowers if time stage 4
   if (time === 4) {
     for (let stemIndex = 0; stemIndex < stems; stemIndex++) {
-      const stemX = (stemIndex + 1) * (svgWidth / (stems + 1));
-      const flowerY = svgHeight - 20 - baseHeight;
+      const stemX =
+        (stemIndex + 1) * (potWidth / (stems + 1)) + (potX - potWidth / 2);
+      const flowerY = potY + 5 - baseHeight;
 
-      // Simple flower
+      // Simple flower with sketch effect
       svgElements.push(
         <circle
-          cx={stemX}
-          cy={flowerY}
+          cx={stemX + (random.next() - 0.5) * 2}
+          cy={flowerY + (random.next() - 0.5) * 2}
           r={8}
-          style={{ fill: "#f59e0b", stroke: "#d97706", strokeWidth: "1" }}
+          style={{
+            fill: "#fff8dc",
+            stroke: "#2d2d2d",
+            strokeWidth: "1",
+            filter: "url(#roughPaper)",
+          }}
         />
       );
     }
@@ -219,21 +254,30 @@ export const GenerateSVG = ({ genome, input }: PlantSVGProps): JSX.Element => {
       width={svgWidth + "px"}
       height={svgHeight + "px"}
     >
+      <DrawLineDefs />
       {svgElements}
     </svg>
   );
 };
 
-const renderApp = () => {
-  if (!appContainer) return;
+// Main App component with hooks
+const MainApp = () => {
+  const [appState, setAppState] = useState<AppState>({
+    stems: 2,
+    leafsPerStem: 3,
+    petioles: 2,
+    selectedStage: 1,
+  });
 
-  appContainer.innerHTML = "";
-  const appElement = render(<App state={appState} setState={setState} />);
-  if (appElement) {
-    appContainer.appendChild(appElement);
-  }
+  const setState = (newState: Partial<AppState>) => {
+    setAppState((prev) => ({ ...prev, ...newState }));
+  };
+
+  return <App state={appState} setState={setState} />;
 };
 
 // Initialize the app
-appContainer = document.getElementById("app");
-renderApp();
+const appContainer = document.getElementById("app");
+if (appContainer) {
+  render(<MainApp />, appContainer);
+}

@@ -1,10 +1,8 @@
 import { defineConfig } from "vite";
+import preact from "@preact/preset-vite";
+
 export default defineConfig({
-  esbuild: {
-    jsxFactory: "h",
-    jsxFragment: "Fragment",
-    jsxInject: `import { h } from './svgJSX.ts'`,
-  },
+  plugins: [preact()],
   build: {
     lib: {
       entry: "src/main.tsx",

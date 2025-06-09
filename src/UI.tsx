@@ -1,5 +1,10 @@
 import { GenerateSVG, GROWTH_STAGES } from "./main";
 import type { AppState } from "./main";
+import type { JSX } from "preact";
+import { useState } from "preact/hooks";
+import { createSeededRandom } from "./SeededRandom";
+import { DrawPot } from "./DrawPot";
+import { DrawLineDefs } from "./DrawLine";
 
 export const Timeline = ({
   state,
@@ -66,7 +71,11 @@ export const Timeline = ({
                 justifyContent: "center",
               }}
             >
-              {generateSVG({ genome, input })}
+              <GenerateSVG 
+                genome={genome} 
+                input={input} 
+                random={createSeededRandom(`timeline-${stage.id}-${state.stems}-${state.leafsPerStem}-${state.petioles}`)} 
+              />
             </div>
 
             <div
@@ -143,7 +152,11 @@ export const PlantDisplay = ({ state }: { state: AppState }): JSX.Element => {
           border: "1px solid #dee2e6",
         }}
       >
-        <GenerateSVG genome={genome} input={input} />
+        <GenerateSVG 
+          genome={genome} 
+          input={input} 
+          random={createSeededRandom(`main-${state.selectedStage}-${state.stems}-${state.leafsPerStem}-${state.petioles}`)} 
+        />
       </div>
     </div>
   );
@@ -301,6 +314,208 @@ export const Controls = ({
   );
 };
 
+export const DevShowcase = (): JSX.Element => {
+  const potStyles: Array<'round' | 'tapered' | 'square' | 'bowl'> = ['round', 'tapered', 'square', 'bowl'];
+  const stemCounts: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
+  const leafCounts: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
+  const growthStages: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
+
+  return (
+    <div style={{ padding: "20px", background: "#f5f5f5", minHeight: "100vh" }}>
+      <h1 style={{ textAlign: "center", marginBottom: "40px", color: "#333" }}>
+        Development Showcase - All Plants & Pots
+      </h1>
+      
+      {/* Pot Styles Showcase */}
+      <section style={{ marginBottom: "60px" }}>
+        <h2 style={{ color: "#333", marginBottom: "20px" }}>Pot Styles</h2>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+          gap: "20px" 
+        }}>
+          {potStyles.map(style => (
+            <div key={style} style={{ 
+              background: "white", 
+              padding: "20px", 
+              borderRadius: "8px", 
+              textAlign: "center",
+              border: "1px solid #ddd"
+            }}>
+              <h3 style={{ margin: "0 0 15px 0", color: "#333", textTransform: "capitalize" }}>
+                {style}
+              </h3>
+              <svg viewBox="0 0 200 200" width="150px" height="150px">
+                <DrawLineDefs />
+                <DrawPot
+                  x={100}
+                  y={150}
+                  width={80}
+                  height={60}
+                  style={style}
+                  random={createSeededRandom(`pot-${style}`)}
+                />
+              </svg>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Plant Configurations Showcase */}
+      <section style={{ marginBottom: "60px" }}>
+        <h2 style={{ color: "#333", marginBottom: "20px" }}>Plant Configurations (Growth Stage 3)</h2>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+          gap: "20px" 
+        }}>
+          {stemCounts.map(stems => 
+            leafCounts.map(leaves => (
+              <div key={`${stems}-${leaves}`} style={{ 
+                background: "white", 
+                padding: "20px", 
+                borderRadius: "8px", 
+                textAlign: "center",
+                border: "1px solid #ddd"
+              }}>
+                <h3 style={{ margin: "0 0 15px 0", color: "#333" }}>
+                  {stems} stem{stems > 1 ? 's' : ''}, {leaves} leaf/leaves per stem
+                </h3>
+                <GenerateSVG
+                  genome={[stems, leaves, 2, 1]}
+                  input={{ time: 3 }}
+                  random={createSeededRandom(`plant-${stems}-${leaves}-3`)}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* Growth Stages Showcase */}
+      <section style={{ marginBottom: "60px" }}>
+        <h2 style={{ color: "#333", marginBottom: "20px" }}>Growth Stages (2 stems, 3 leaves)</h2>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+          gap: "20px" 
+        }}>
+          {growthStages.map(stage => {
+            const stageInfo = GROWTH_STAGES.find(s => s.id === stage)!;
+            return (
+              <div key={stage} style={{ 
+                background: "white", 
+                padding: "20px", 
+                borderRadius: "8px", 
+                textAlign: "center",
+                border: "1px solid #ddd"
+              }}>
+                <h3 style={{ margin: "0 0 15px 0", color: "#333" }}>
+                  Stage {stage}: {stageInfo.name}
+                </h3>
+                <GenerateSVG
+                  genome={[2, 3, 2, 1]}
+                  input={{ time: stage }}
+                  random={createSeededRandom(`growth-${stage}`)}
+                />
+                <p style={{ fontSize: "12px", color: "#666", margin: "10px 0 0 0" }}>
+                  {stageInfo.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Pot & Plant Combinations */}
+      <section>
+        <h2 style={{ color: "#333", marginBottom: "20px" }}>Pot & Plant Combinations</h2>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
+          gap: "20px" 
+        }}>
+          {potStyles.map(potStyle => (
+            <div key={potStyle} style={{ 
+              background: "white", 
+              padding: "20px", 
+              borderRadius: "8px", 
+              textAlign: "center",
+              border: "1px solid #ddd"
+            }}>
+              <h3 style={{ margin: "0 0 15px 0", color: "#333", textTransform: "capitalize" }}>
+                {potStyle} Pot with 3-stem Plant
+              </h3>
+              <svg viewBox="0 0 300 300" width="250px" height="250px">
+                <DrawLineDefs />
+                <DrawPot
+                  x={150}
+                  y={220}
+                  width={120}
+                  height={60}
+                  style={potStyle}
+                  random={createSeededRandom(`combo-pot-${potStyle}`)}
+                />
+                {/* Generate stems for this combo */}
+                {[0, 1, 2].map(stemIndex => {
+                  const stemX = 90 + stemIndex * 40;
+                  const stemY = 225;
+                  const height = 80;
+                  const random = createSeededRandom(`combo-stem-${potStyle}-${stemIndex}`);
+                  
+                  // Simple stem path
+                  const midX = stemX + (random.next() - 0.5) * 3;
+                  const stemPath = `M ${stemX} ${stemY} Q ${midX} ${stemY - height / 2} ${stemX + (random.next() - 0.5) * 2} ${stemY - height}`;
+                  
+                  return (
+                    <g key={stemIndex}>
+                      <path
+                        d={stemPath}
+                        style={{
+                          fill: "none",
+                          stroke: "#16a34a",
+                          strokeWidth: "2",
+                          strokeLinecap: "round",
+                          filter: "url(#roughPaper)",
+                        }}
+                      />
+                      {/* Add a couple leaves */}
+                      {[0, 1].map(leafIndex => {
+                        const leafY = stemY - (height * (leafIndex + 1)) / 3;
+                        const side = leafIndex % 2 === 0 ? -1 : 1;
+                        const leafX = stemX + side * 15;
+                        const leafSize = 12;
+                        
+                        const wobble = (value: number) => random.wobble(value, 2);
+                        const leafPath = `M ${wobble(leafX)} ${wobble(leafY)} Q ${wobble(leafX - leafSize / 2)} ${wobble(leafY - leafSize)} ${wobble(leafX)} ${wobble(leafY - leafSize * 1.5)} Q ${wobble(leafX + leafSize / 2)} ${wobble(leafY - leafSize)} ${wobble(leafX)} ${wobble(leafY)}`;
+                        
+                        return (
+                          <path
+                            key={leafIndex}
+                            d={leafPath}
+                            style={{
+                              fill: "#e8f5e9",
+                              stroke: "#2d2d2d",
+                              strokeWidth: "1",
+                              strokeLinecap: "round",
+                              strokeLinejoin: "round",
+                              filter: "url(#roughPaper)",
+                            }}
+                          />
+                        );
+                      })}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
+
 export const App = ({
   state,
   setState,
@@ -308,6 +523,37 @@ export const App = ({
   state: AppState;
   setState: (newState: Partial<AppState>) => void;
 }): JSX.Element => {
+  const [showDevMode, setShowDevMode] = useState(false);
+
+  if (showDevMode) {
+    return (
+      <div>
+        <div style={{ 
+          position: "fixed", 
+          top: "20px", 
+          right: "20px", 
+          zIndex: 1000 
+        }}>
+          <button
+            onClick={() => setShowDevMode(false)}
+            style={{
+              padding: "10px 20px",
+              background: "#667eea",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontWeight: "500",
+            }}
+          >
+            Back to Main App
+          </button>
+        </div>
+        <DevShowcase />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -323,8 +569,27 @@ export const App = ({
             textAlign: "center",
             marginBottom: "40px",
             color: "white",
+            position: "relative",
           }}
         >
+          <button
+            onClick={() => setShowDevMode(true)}
+            style={{
+              position: "absolute",
+              top: "0",
+              right: "0",
+              padding: "8px 16px",
+              background: "rgba(255, 255, 255, 0.2)",
+              color: "white",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontWeight: "500",
+            }}
+          >
+            Dev Showcase
+          </button>
           <h1
             style={{
               fontSize: "36px",
