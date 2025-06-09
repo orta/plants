@@ -202,8 +202,214 @@ export const DrawPot = ({ x, y, width, height, style = 'tapered', random }: PotP
     return shadingLines;
   };
 
+  // Generate watercolor-style shading shapes
+  const generateWatercolorShading = () => {
+    const watercolorShapes = [];
+    
+    // Base pot color wash
+    const baseWash = generateBaseWash();
+    if (baseWash) {
+      watercolorShapes.push(baseWash);
+    }
+    
+    // Shadow/depth shading for square pots (and other styles)
+    if (style === 'square' || style === 'tapered') {
+      const rimShading = generateRimShading();
+      watercolorShapes.push(...rimShading);
+    }
+    
+    // Subtle color variations
+    const colorVariations = generateColorVariations();
+    watercolorShapes.push(...colorVariations);
+    
+    return watercolorShapes;
+  };
+
+  // Create organic base wash
+  const generateBaseWash = () => {
+    const rimWidth = width;
+    const baseWidth = style === 'tapered' ? width * 0.7 : width * 0.85;
+    
+    // Create an organic shape that roughly follows the pot outline
+    const washPoints = [];
+    
+    // Top edge (slightly inside rim)
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      const washX = x - rimWidth * 0.45 + t * rimWidth * 0.9;
+      const washY = y + random.wobble(8, 3);
+      washPoints.push({ x: washX, y: washY });
+    }
+    
+    // Right side
+    for (let i = 1; i <= 6; i++) {
+      const t = i / 6;
+      const sideWidth = rimWidth * 0.45 + t * (baseWidth * 0.45 - rimWidth * 0.45);
+      const washX = x + sideWidth + random.wobble(0, 4);
+      const washY = y + t * height * 0.85 + random.wobble(0, 3);
+      washPoints.push({ x: washX, y: washY });
+    }
+    
+    // Bottom edge
+    for (let i = 7; i >= 0; i--) {
+      const t = i / 8;
+      const washX = x - baseWidth * 0.4 + t * baseWidth * 0.8;
+      const washY = y + height * 0.85 + random.wobble(0, 3);
+      washPoints.push({ x: washX, y: washY });
+    }
+    
+    // Left side
+    for (let i = 5; i >= 1; i--) {
+      const t = i / 6;
+      const sideWidth = rimWidth * 0.45 + t * (baseWidth * 0.45 - rimWidth * 0.45);
+      const washX = x - sideWidth + random.wobble(0, 4);
+      const washY = y + t * height * 0.85 + random.wobble(0, 3);
+      washPoints.push({ x: washX, y: washY });
+    }
+    
+    // Create smooth path through points
+    if (washPoints.length < 4) return null;
+    
+    let washPath = `M ${washPoints[0].x} ${washPoints[0].y}`;
+    for (let i = 1; i < washPoints.length; i++) {
+      const curr = washPoints[i];
+      const next = washPoints[(i + 1) % washPoints.length];
+      const midX = (curr.x + next.x) / 2;
+      const midY = (curr.y + next.y) / 2;
+      washPath += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
+    }
+    washPath += ' Z';
+    
+    return (
+      <path
+        key="base-wash"
+        d={washPath}
+        style={{
+          fill: '#d4c5b0',
+          opacity: 0.15,
+          mixBlendMode: 'multiply',
+        }}
+      />
+    );
+  };
+
+  // Generate rim and depth shading
+  const generateRimShading = () => {
+    const shapes = [];
+    
+    if (style === 'square') {
+      // Top rim shadow (showing the rim edge)
+      const rimShadowPoints = createJaggedPoints(
+        x - width * 0.4, y + 2,
+        x + width * 0.4, y + 8,
+        6
+      );
+      
+      let rimPath = `M ${rimShadowPoints[0].x} ${rimShadowPoints[0].y}`;
+      for (let i = 1; i < rimShadowPoints.length; i++) {
+        rimPath += ` L ${rimShadowPoints[i].x} ${rimShadowPoints[i].y}`;
+      }
+      
+      // Close the rim shadow shape
+      rimPath += ` L ${x + width * 0.4} ${y + 2} L ${x - width * 0.4} ${y + 2} Z`;
+      
+      shapes.push(
+        <path
+          key="rim-shadow"
+          d={rimPath}
+          style={{
+            fill: '#8b7355',
+            opacity: 0.2,
+            mixBlendMode: 'multiply',
+          }}
+        />
+      );
+      
+      // Right side depth shadow
+      const rightShadowPoints = createJaggedPoints(
+        x + width * 0.35, y + 5,
+        x + width * 0.25, y + height * 0.9,
+        5
+      );
+      
+      let rightShadowPath = `M ${x + width * 0.45} ${y}`;
+      rightShadowPath += ` L ${x + width * 0.45} ${y + height}`;
+      for (let i = rightShadowPoints.length - 1; i >= 0; i--) {
+        rightShadowPath += ` L ${rightShadowPoints[i].x} ${rightShadowPoints[i].y}`;
+      }
+      rightShadowPath += ' Z';
+      
+      shapes.push(
+        <path
+          key="right-shadow"
+          d={rightShadowPath}
+          style={{
+            fill: '#a0895c',
+            opacity: 0.18,
+            mixBlendMode: 'multiply',
+          }}
+        />
+      );
+    }
+    
+    return shapes;
+  };
+
+  // Generate subtle color variations
+  const generateColorVariations = () => {
+    const variations = [];
+    
+    // Create 2-3 organic color blobs
+    for (let i = 0; i < 3; i++) {
+      const blobCenterX = x + random.wobble(0, width * 0.3);
+      const blobCenterY = y + height * 0.3 + random.wobble(0, height * 0.4);
+      const blobSize = random.range(15, 35);
+      
+      // Create organic blob shape
+      const blobPoints = [];
+      const pointCount = 8;
+      for (let j = 0; j < pointCount; j++) {
+        const angle = (j / pointCount) * Math.PI * 2;
+        const radius = blobSize + random.wobble(0, blobSize * 0.4);
+        const pointX = blobCenterX + Math.cos(angle) * radius;
+        const pointY = blobCenterY + Math.sin(angle) * radius;
+        blobPoints.push({ x: pointX, y: pointY });
+      }
+      
+      let blobPath = `M ${blobPoints[0].x} ${blobPoints[0].y}`;
+      for (let j = 1; j < blobPoints.length; j++) {
+        const curr = blobPoints[j];
+        const next = blobPoints[(j + 1) % blobPoints.length];
+        const midX = (curr.x + next.x) / 2;
+        const midY = (curr.y + next.y) / 2;
+        blobPath += ` Q ${curr.x} ${curr.y} ${midX} ${midY}`;
+      }
+      blobPath += ' Z';
+      
+      const colors = ['#d4c5b0', '#c4b59f', '#b5a68a', '#e0d1be'];
+      const color = colors[i % colors.length];
+      
+      variations.push(
+        <path
+          key={`color-variation-${i}`}
+          d={blobPath}
+          style={{
+            fill: color,
+            opacity: random.range(0.08, 0.15),
+            mixBlendMode: 'multiply',
+          }}
+        />
+      );
+    }
+    
+    return variations;
+  };
+
   return (
     <g>
+      {/* Watercolor base layer (behind everything) */}
+      {generateWatercolorShading()}
+      
       {/* Multiple overlapping pot segments */}
       {generatePotSegments().map((segment, index) => (
         <path
