@@ -324,17 +324,20 @@ const generateStem = ({
       // Cluster leaves at branch ends
       const leavesPerBranch = Math.ceil(leafCount / branchCount);
       for (let i = 0; i < leavesPerBranch; i++) {
-        const leafAngle = random.range(0, Math.PI * 2);
-        const leafDistance = random.range(5, 15);
-        const leafX = endX + Math.cos(leafAngle) * leafDistance;
-        const leafY = endY + Math.sin(leafAngle) * leafDistance;
-        const leafRotation = leafAngle + random.wobble(0, 0.3);
+        // Calculate branch direction for better leaf orientation
+        const branchDirection = Math.atan2(endY - startY, endX - startX);
+        const leafAngleBase = branchDirection + random.range(-Math.PI / 3, Math.PI / 3);
+        const leafDistance = random.range(8, 18);
+        
+        const leafX = endX + Math.cos(leafAngleBase) * leafDistance;
+        const leafY = endY + Math.sin(leafAngleBase) * leafDistance;
+        const leafRotation = leafAngleBase + random.wobble(0, 0.3);
         
         elements.push(
           generateLeaf({ 
             x: leafX, 
             y: leafY, 
-            size: leafSize * random.range(1.0, 1.5), // Increased from 0.8-1.2 to 1.0-1.5
+            size: leafSize * random.range(1.0, 1.5),
             random, 
             leafType,
             angle: leafRotation
@@ -375,15 +378,21 @@ const generateStem = ({
 
       // Add leaves along trail
       if (segment < leafCount) {
-        const leafX = nextX + random.wobble(0, 8);
-        const leafY = nextY + random.wobble(0, 5);
-        const leafAngle = Math.atan2(nextX - currentX, currentY - nextY) + random.wobble(0, 0.5);
+        // Calculate perpendicular offset from the trail direction
+        const trailDirection = Math.atan2(nextX - currentX, currentY - nextY);
+        const side = segment % 2 === 0 ? -1 : 1;
+        const leafDistance = random.range(8, 15);
+        const perpendicular = trailDirection + Math.PI / 2;
+        
+        const leafX = nextX + Math.cos(perpendicular) * side * leafDistance;
+        const leafY = nextY + Math.sin(perpendicular) * side * leafDistance * 0.3; // Slight upward bias
+        const leafAngle = trailDirection + side * 0.3 + random.wobble(0, 0.3);
         
         elements.push(
           generateLeaf({ 
             x: leafX, 
             y: leafY, 
-            size: leafSize * random.range(1.1, 1.4), // Increased from 0.9-1.1 to 1.1-1.4
+            size: leafSize * random.range(1.1, 1.4),
             random, 
             leafType,
             angle: leafAngle
@@ -398,9 +407,9 @@ const generateStem = ({
     // Upright and spiky plants - more traditional single stem
     const wobbleAmount = plantType === 'spiky' ? 1 : 3;
     const midX = startX + (random.next() - 0.5) * wobbleAmount;
-    const stemPath = `M ${startX} ${startY} Q ${midX} ${startY - height / 2} ${
-      startX + (random.next() - 0.5) * 2
-    } ${startY - height}`;
+    const endX = startX + (random.next() - 0.5) * 2;
+    const endY = startY - height;
+    const stemPath = `M ${startX} ${startY} Q ${midX} ${startY - height / 2} ${endX} ${endY}`;
 
     elements.push(
       <path
@@ -415,21 +424,55 @@ const generateStem = ({
       />
     );
 
+    // Function to calculate point along quadratic bezier curve
+    const getPointOnStem = (t: number) => {
+      // Quadratic bezier formula: (1-t)²P0 + 2(1-t)tP1 + t²P2
+      const oneMinusT = 1 - t;
+      const x = oneMinusT * oneMinusT * startX + 
+                2 * oneMinusT * t * midX + 
+                t * t * endX;
+      const y = oneMinusT * oneMinusT * startY + 
+                2 * oneMinusT * t * (startY - height / 2) + 
+                t * t * endY;
+      return { x, y };
+    };
+
+    // Function to calculate stem direction at point t
+    const getStemDirection = (t: number) => {
+      // Derivative of quadratic bezier for direction
+      const dx = 2 * (1 - t) * (midX - startX) + 2 * t * (endX - midX);
+      const dy = 2 * (1 - t) * ((startY - height / 2) - startY) + 2 * t * (endY - (startY - height / 2));
+      return Math.atan2(dy, dx);
+    };
+
     // Add leaves along the stem with more natural spacing
     for (let i = 0; i < leafCount; i++) {
-      let leafY, leafX, leafAngle;
+      let stemT, leafX, leafY, leafAngle;
       
       if (plantType === 'spiky') {
         // Spiky plants have more structured leaf arrangement
-        leafY = startY - (height * (i + 1)) / (leafCount + 1);
+        stemT = (i + 1) / (leafCount + 1);
+        const stemPoint = getPointOnStem(stemT);
         const side = i % 2 === 0 ? -1 : 1;
-        leafX = startX + side * random.range(10, 20);
+        const stemDirection = getStemDirection(stemT);
+        const perpendicular = stemDirection + Math.PI / 2;
+        const leafDistance = random.range(10, 20);
+        
+        leafX = stemPoint.x + Math.cos(perpendicular) * side * leafDistance;
+        leafY = stemPoint.y + Math.sin(perpendicular) * side * leafDistance * 0.3; // Slight upward bias
         leafAngle = side * 0.3 + random.wobble(0, 0.2);
       } else {
         // More organic spacing for other types
-        leafY = startY - height * (0.2 + (i * 0.7) / leafCount) + random.wobble(0, height * 0.1);
+        stemT = 0.2 + (i * 0.7) / leafCount + random.wobble(0, 0.1);
+        stemT = Math.max(0.05, Math.min(0.95, stemT)); // Keep within bounds
+        const stemPoint = getPointOnStem(stemT);
         const side = i % 2 === 0 ? -1 : 1;
-        leafX = startX + side * random.range(12, 25);
+        const stemDirection = getStemDirection(stemT);
+        const perpendicular = stemDirection + Math.PI / 2;
+        const leafDistance = random.range(12, 25);
+        
+        leafX = stemPoint.x + Math.cos(perpendicular) * side * leafDistance;
+        leafY = stemPoint.y + Math.sin(perpendicular) * side * leafDistance * 0.2; // Slight upward bias
         leafAngle = side * 0.4 + random.wobble(0, 0.4);
       }
       
@@ -437,7 +480,7 @@ const generateStem = ({
         generateLeaf({ 
           x: leafX, 
           y: leafY, 
-          size: leafSize * random.range(1.0, 1.6), // Increased from 0.8-1.3 to 1.0-1.6
+          size: leafSize * random.range(1.0, 1.6),
           random, 
           leafType,
           angle: leafAngle
