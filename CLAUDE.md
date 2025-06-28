@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- `yarn dev` - Start development server with Vite
+- `yarn dev` - Start development server with Vite. Do not run this, I will run it.
 - `yarn build` - Build for production (runs TypeScript compilation then Vite build)
 - `yarn preview` - Preview production build
 
